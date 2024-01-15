@@ -1,0 +1,1 @@
+A module to simplify the use of the Cascadeur Python API.
