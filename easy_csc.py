@@ -189,10 +189,27 @@ def set_interpolation(frame_number, layer_ids=[], interpolation_type="BEZIER") -
 # Get objects on layer
 # Get layer
 def get_layer_by_name(name):
-    layer_ids = layer_viewer.all_layer_ids()
-    for id in layer_ids:
-        layer = layer_viewer.find_layer(id)
+    layers_map = scene.layers_viewer().layers_map()
+    for id, layer in layers_map.items():
         if layer.header.name == name:
             return id
-    else:
-        return False
+    raise ValueError("layer with name '" + name + "' not found")
+
+
+# Move objects to layer
+def move_objects_to_layer(
+    obj_ids: list = None,
+    layer_id: str = None,
+    layer_name: str = None,
+):
+    if layer_id is None and layer_name is None:
+        raise ValueError("Either layer_id or layer_name must be provided.")
+    layer_id = get_layer_by_name(layer_name) if layer_name else layer_id
+
+    if obj_ids is None:
+        obj_ids = list(get_selected_objects())
+
+    def move_to_layer(model_editor, updateEditor, scene):
+        model_editor.move_objects_to_layer(obj_ids, layer_id)
+
+    scene.modify("move objects to layers", move_to_layer)
