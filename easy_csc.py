@@ -11,7 +11,6 @@ behaviour_viewer = model_viewer.behaviour_viewer()
 ######################
 # Viewport Selection #
 ######################
-# Get selected objects
 def get_selected_objects() -> Set[csc.model.ObjectId]:
     """
     Getting the set of selected objects object ids.
@@ -25,7 +24,6 @@ def get_selected_objects() -> Set[csc.model.ObjectId]:
     }
 
 
-# Get selected object
 def get_selected_object() -> csc.model.ObjectId:
     """
     Return the object id of the selected object
@@ -42,7 +40,6 @@ def get_selected_object() -> csc.model.ObjectId:
         raise ValueError("More than one object selected.")
 
 
-# Select objects
 def select_object(object_id: csc.model.ObjectId, extend: bool = False) -> None:
     """
     Select an object by it's object id.
@@ -141,7 +138,6 @@ additional/total
 ############
 # Timeline #
 ############
-# Set Current Frame
 def set_current_frame(frame: int) -> None:
     """
     Set the playhead to the given frame.
@@ -151,7 +147,6 @@ def set_current_frame(frame: int) -> None:
     scene.set_current_frame(frame)
 
 
-# Get current Frame
 def get_current_frame() -> int:
     """
     Get the current position of the playhead.
@@ -161,7 +156,6 @@ def get_current_frame() -> int:
     return scene.get_current_frame()
 
 
-# Set keyframe
 def set_keyframe(frame_number: int, layer_ids: List[str] = []) -> None:
     """
     Set keyframe on the given frame and list of layers.
@@ -184,7 +178,6 @@ def set_keyframe(frame_number: int, layer_ids: List[str] = []) -> None:
     scene.modify("Set keyframe", mod)
 
 
-# Delete keyframe
 def delete_keyframe(frame_number: int, layer_ids: List[str] = []) -> None:
     """
     Delete keyframe on the given frame and list of layers.
@@ -205,7 +198,6 @@ def delete_keyframe(frame_number: int, layer_ids: List[str] = []) -> None:
     scene.modify("Delete keyframe", mod)
 
 
-# Set interpolation
 def set_interpolation(frame_number, layer_ids=[], interpolation_type="BEZIER") -> None:
     """
     BEZIER
@@ -232,13 +224,7 @@ def set_interpolation(frame_number, layer_ids=[], interpolation_type="BEZIER") -
     scene.modify("Set interpolation", mod)
 
 
-# Create layer
-# Delete layer
-# Select layer
-# Get selected layers
-# Get objects on layer
-# Get layer
-def get_layer_by_name(name: str) -> csc.Guid:
+def get_layer_id_by_name(name: str) -> csc.Guid:
     """
     Get the id of the layer with the given name.
 
@@ -246,32 +232,121 @@ def get_layer_by_name(name: str) -> csc.Guid:
     :raises ValueError: Raised when no layer with the given name is found
     :return csc.Guid: ID of the layer
     """
-    layers_map = scene.layers_viewer().layers_map()
-    for id, layer in layers_map.items():
+    for id, layer in scene.layers_viewer().layers_map():
         if layer.header.name == name:
             return id
     raise ValueError("layer with name '" + name + "' not found")
 
 
-# Move objects to layer
+def get_folder_id_by_name(name: str) -> csc.Guid:
+    """
+    Get the id of the folder with the given name.
+
+    :param str name: Name of the folder
+    :raises ValueError: Raised when no folder with the given name is found
+    :return csc.Guid: ID of the folder
+    """
+    for id, folder in scene.layers_viewer().folders_map():
+        if folder.header.name == name:
+            return id
+    raise ValueError("layer with name '" + name + "' not found")
+
+
+def create_folder(name: str, parent_folder: csc.Guid = None) -> csc.Guid:
+    """
+    Create folder in the timeline with the given name under the parent_folder.
+    If no parent_folder is given the root folder is used.
+
+    :param str name: Name of the folder
+    :param csc.Guid parent_folder: Parent folder of the new folder
+    :return csc.Guid: ID of the created folder
+    """
+    if parent_folder is None:
+        parent_folder = layer_viewer.root_id()
+    folder_id: csc.Guid = None
+
+    def mod(model_editor, update_editor, scene_updater):
+        nonlocal folder_id
+        layers_editor = model_editor.layers_editor()
+        folder_id = layers_editor.create_folder(name, parent_folder)
+
+    scene.modify("Create folder", mod)
+    return folder_id
+
+
+def create_layer(name: str, parent_folder: csc.Guid = None) -> csc.Guid:
+    """
+    Create layer in the timeline with the given name under the parent_folder.
+    If no parent_folder is given the root folder is used.
+
+    :param str name: Name of the layer
+    :param csc.Guid parent_folder: Parent folder of the new layer
+    :return csc.Guid: ID of the created layer
+    """
+    if parent_folder is None:
+        parent_folder = layer_viewer.root_id()
+    layer_id: csc.Guid = None
+
+    def mod(model_editor, update_editor, scene_updater):
+        nonlocal layer_id
+        layers_editor = model_editor.layers_editor()
+        layer_id = layers_editor.create_layer(name, parent_folder)
+
+    scene.modify("Create layer", mod)
+    return layer_id
+
+
+def delete_layer(layer_id: csc.Guid) -> None:
+    """
+    Delete the layer with a given ID
+
+    :param csc.Guid layer_id: ID of the layer
+    """
+
+    def mod(model_editor, update_editor, scene_updater):
+        layers_editor = model_editor.layers_editor()
+        layers_editor.delete_layer(layer_id)
+
+    scene.modify("Delete layer", mod)
+
+
+def delete_folder(folder_id: csc.Guid) -> None:
+    """
+    Delete the folder with a given ID
+
+    :param csc.Guid folder_id: ID of the folder
+    """
+
+    def mod(model_editor, update_editor, scene_updater):
+        layers_editor = model_editor.layers_editor()
+        layers_editor.delete_folder(folder_id)
+
+    scene.modify("Delete folder", mod)
+
+
+# Select layer
+# Get selected layers
+# Get objects on layer
+
+
 def move_objects_to_layer(
     obj_ids: list = None,
-    layer_id: str = None,
+    layer_id: csc.Guid = None,
     layer_name: str = None,
-):
+) -> None:
     """
     Move list of objects to a given layer.
     If no object is given the selected objects will be used.
     You need to give either layer_id or layer_name for the target layer.
 
     :param list obj_ids: List of object ids, defaults to None
-    :param str layer_id: Layer ID of the target layer, defaults to None
+    :param csc.Guid layer_id: Layer ID of the target layer, defaults to None
     :param str layer_name: Name of the target layer, defaults to None
     :raises ValueError: Raised when neither layer_name or layer_id is given
     """
     if layer_id is None and layer_name is None:
         raise ValueError("Either layer_id or layer_name must be provided.")
-    layer_id = get_layer_by_name(layer_name) if layer_name else layer_id
+    layer_id = get_layer_id_by_name(layer_name) if layer_name else layer_id
 
     if obj_ids is None:
         obj_ids = list(get_selected_objects())
